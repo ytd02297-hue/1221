@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>DIEP.IO Clone v5</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Oxanium:wght@400;600;800&family=Share+Tech+Mono&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+body{background:#080c14;font-family:'Oxanium',sans-serif;overflow:hidden;color:#fff;touch-action:none;}
+canvas{display:block;cursor:crosshair;}
+.panel{background:rgba(0,5,22,.82);backdrop-filter:blur(14px);border:1px solid rgba(80,130,255,.1);border-radius:10px;}
+
+/* HUD */
+#hud{position:fixed;bottom:0;left:0;right:0;padding:8px 14px 10px;background:linear-gradient(transparent,rgba(0,0,0,.9));display:flex;align-items:flex-end;justify-content:space-between;pointer-events:none;z-index:10;}
+#scoreBar{width:220px;}
+#sLabel{font-size:9px;font-family:'Share Tech Mono',monospace;color:#3355bb;letter-spacing:3px;text-transform:uppercase;}
+#sNum{font-size:24px;font-weight:800;font-family:'Share Tech Mono',monospace;}
+#xpBar{width:100%;height:5px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden;margin-top:3px;}
+#xpFill{height:100%;background:linear-gradient(90deg,#1144dd,#44aaff);border-radius:3px;transition:width .4s;width:0%;}
+#tankInfo{text-align:center;}
+#tName{font-size:13px;font-weight:700;color:#66aaff;letter-spacing:1px;}
+#lvlBadge{font-size:9px;font-family:'Share Tech Mono',monospace;color:#445;letter-spacing:2px;margin-top:1px;}
+#killCnt{font-size:9px;color:#ffcc44;font-family:'Share Tech Mono',monospace;}
+
+/* Stats */
+#statP{position:fixed;left:10px;top:10px;width:196px;padding:10px;pointer-events:all;z-index:10;}
+#statP h3{font-size:9px;letter-spacing:3px;color:#3355aa;margin-bottom:7px;font-family:'Share Tech Mono',monospace;text-transform:uppercase;}
+#spPts{font-size:11px;color:#ffcc44;margin-bottom:6px;font-family:'Share Tech Mono',monospace;}
+.sRow{display:flex;align-items:center;margin-bottom:4px;cursor:pointer;border-radius:4px;padding:1px 3px;transition:background .1s;}
+.sRow:hover{background:rgba(100,150,255,.08);}
+.sNm{font-size:9px;color:#556;width:84px;flex-shrink:0;}
+.sBW{flex:1;height:5px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden;}
+.sBF{height:100%;border-radius:3px;transition:width .3s;}
+.sPl{margin-left:5px;font-size:13px;color:#334;user-select:none;}
+.sRow.av .sNm{color:#99bbee;}.sRow.av .sPl{color:#ffcc44;}
+
+/* Tank select */
+#tankSel{position:fixed;left:10px;bottom:68px;width:196px;padding:8px;pointer-events:all;z-index:10;}
+#tankSel h3{font-size:9px;letter-spacing:3px;color:#3355aa;margin-bottom:6px;font-family:'Share Tech Mono',monospace;text-transform:uppercase;}
+.tBtn{display:inline-block;margin:2px;padding:2px 6px;font-size:8px;font-family:'Oxanium',sans-serif;background:rgba(30,50,110,.4);border:1px solid rgba(60,100,200,.15);border-radius:4px;cursor:pointer;color:#556;transition:all .15s;}
+.tBtn.ul{color:#88aaee;background:rgba(30,60,150,.4);}
+.tBtn.act{color:#fff;background:rgba(20,70,210,.75);border-color:#3366ff;}
+
+/* Leaderboard */
+#lb{position:fixed;top:10px;right:10px;width:168px;padding:10px;pointer-events:none;z-index:10;}
+#lb h3{font-size:9px;letter-spacing:3px;color:#3355aa;margin-bottom:6px;font-family:'Share Tech Mono',monospace;text-transform:uppercase;}
+.lbR{display:flex;align-items:center;padding:2px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:10px;}
+.lbR .rk{color:#223;font-family:'Share Tech Mono',monospace;width:14px;font-size:8px;}
+.lbR .nm{flex:1;padding:0 4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.lbR.me .nm{color:#ffdd44;}
+.lbR .sc{color:#3355aa;font-family:'Share Tech Mono',monospace;font-size:8px;}
+
+/* Minimap */
+#mm{position:fixed;bottom:68px;right:10px;width:118px;height:118px;overflow:hidden;border-radius:7px;z-index:10;}
+
+/* Boss bar */
+#bossBar{position:fixed;top:10px;left:50%;transform:translateX(-50%);width:300px;display:none;pointer-events:none;z-index:50;}
+#bossLbl{font-size:9px;letter-spacing:3px;color:#ff4444;text-align:center;margin-bottom:3px;font-family:'Share Tech Mono',monospace;}
+#bossWrap{width:100%;height:11px;background:rgba(0,0,0,.7);border:1px solid rgba(255,50,50,.4);border-radius:5px;overflow:hidden;}
+#bossFill{height:100%;border-radius:5px;transition:width .2s;}
+
+/* Event banner */
+#evBanner{position:fixed;top:60px;left:50%;transform:translateX(-50%);display:none;pointer-events:none;z-index:49;text-align:center;}
+#evName{font-size:12px;font-weight:800;letter-spacing:3px;font-family:'Share Tech Mono',monospace;text-shadow:0 0 18px currentColor;}
+#evTimer{font-size:9px;font-family:'Share Tech Mono',monospace;color:#556;margin-top:2px;letter-spacing:2px;}
+
+/* Announce */
+#ann{position:fixed;top:90px;left:50%;transform:translateX(-50%);font-size:16px;font-weight:700;letter-spacing:2px;opacity:0;transition:opacity .5s;pointer-events:none;text-shadow:0 0 18px currentColor;font-family:'Share Tech Mono',monospace;white-space:nowrap;z-index:55;}
+
+/* Status */
+#sts{position:fixed;top:10px;left:50%;transform:translateX(-50%);font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;color:#3355aa;padding:4px 12px;background:rgba(0,0,0,.6);border-radius:20px;border:1px solid rgba(60,100,200,.15);pointer-events:none;z-index:60;}
+
+/* Kill feed */
+#kf{position:fixed;top:10px;right:188px;display:flex;flex-direction:column;gap:3px;align-items:flex-end;pointer-events:none;z-index:10;}
+.km{font-size:9px;font-family:'Share Tech Mono',monospace;background:rgba(0,0,0,.6);padding:2px 6px;border-radius:3px;border-left:2px solid #ff5533;animation:fk 4s forwards;}
+@keyframes fk{0%{opacity:1}70%{opacity:1}100%{opacity:0}}
+
+/* Powerup icons */
+#pui{position:fixed;bottom:68px;left:216px;display:flex;gap:5px;pointer-events:none;z-index:10;}
+.pi{width:30px;height:30px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:16px;border:1px solid rgba(255,255,255,.12);background:rgba(0,0,0,.4);}
+
+/* Chat */
+#chatBox{position:fixed;bottom:68px;left:50%;transform:translateX(-50%);width:310px;pointer-events:all;z-index:10;}
+#chatLog{height:88px;overflow-y:auto;padding:6px 8px;margin-bottom:4px;font-size:10px;font-family:'Share Tech Mono',monospace;line-height:1.7;scrollbar-width:thin;scrollbar-color:#224 transparent;}
+#chatLog::-webkit-scrollbar{width:3px;}#chatLog::-webkit-scrollbar-thumb{background:#224;}
+.cMsg{color:#556;}.cMsg .cNm{font-weight:700;color:#667;}.cMsg.own .cNm{color:#ffdd44;}.cMsg.sys{color:#334;font-style:italic;font-size:9px;}
+#chatRow{display:flex;gap:4px;}
+#chatIn{flex:1;background:rgba(255,255,255,.04);border:1px solid rgba(60,100,200,.2);border-radius:5px;color:#ccc;font-family:'Share Tech Mono',monospace;font-size:10px;padding:4px 8px;outline:none;}
+#chatSend{background:rgba(30,60,200,.4);border:1px solid rgba(60,100,200,.3);border-radius:5px;color:#88aaff;font-size:10px;font-family:'Oxanium',sans-serif;padding:4px 10px;cursor:pointer;}
+
+/* Mobile */
+#mUI{display:none;position:fixed;bottom:0;left:0;right:0;height:190px;pointer-events:none;z-index:20;}
+#jZone{position:absolute;left:16px;bottom:16px;width:130px;height:130px;pointer-events:all;}
+#jBase{width:130px;height:130px;border-radius:50%;background:rgba(255,255,255,.05);border:2px solid rgba(255,255,255,.12);}
+#jKnob{position:absolute;width:52px;height:52px;border-radius:50%;background:rgba(80,140,255,.5);border:2px solid rgba(80,140,255,.8);top:50%;left:50%;transform:translate(-50%,-50%);}
+#fireB{position:absolute;right:24px;bottom:24px;width:84px;height:84px;border-radius:50%;background:rgba(255,60,60,.35);border:3px solid rgba(255,60,60,.7);display:flex;align-items:center;justify-content:center;font-size:26px;pointer-events:all;user-select:none;}
+#aimZ{position:absolute;left:160px;right:120px;top:0;bottom:0;pointer-events:all;}
+
+/* Start */
+#ov{position:fixed;inset:0;background:rgba(0,0,0,.93);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:200;backdrop-filter:blur(22px);}
+#ov h1{font-size:64px;font-weight:800;background:linear-gradient(135deg,#1144ee,#44aaff,#66ffcc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:-2px;margin-bottom:3px;}
+.ovSub{font-size:10px;letter-spacing:5px;color:#223;text-transform:uppercase;font-family:'Share Tech Mono',monospace;margin-bottom:28px;}
+.ovIn{background:rgba(255,255,255,.04);border:1px solid rgba(60,100,200,.2);border-radius:7px;color:#fff;font-family:'Oxanium',sans-serif;font-size:15px;font-weight:600;padding:9px 18px;outline:none;text-align:center;width:250px;margin-bottom:10px;transition:border-color .2s;}
+.ovIn:focus{border-color:rgba(60,100,200,.55);}.ovIn::placeholder{color:#223;}
+#passRow{display:none;flex-direction:column;align-items:center;gap:6px;margin-bottom:10px;}
+#passInfo{font-size:10px;font-family:'Share Tech Mono',monospace;color:#554;letter-spacing:1px;}
+#playB{background:linear-gradient(135deg,#1133bb,#2277ff);border:none;border-radius:7px;color:#fff;font-family:'Oxanium',sans-serif;font-size:13px;font-weight:700;letter-spacing:3px;padding:11px 38px;cursor:pointer;text-transform:uppercase;box-shadow:0 4px 24px rgba(20,60,255,.4);transition:transform .1s,box-shadow .2s;margin-bottom:10px;}
+#playB:hover{transform:translateY(-2px);box-shadow:0 8px 32px rgba(20,60,255,.6);}
+.hint{font-family:'Share Tech Mono',monospace;font-size:9px;color:#223;line-height:2;text-align:center;}
+.key{display:inline-block;background:rgba(255,255,255,.06);border-radius:3px;padding:1px 4px;}
+#ntMsg{font-size:10px;color:#ff8844;font-family:'Share Tech Mono',monospace;margin-top:4px;display:none;}
+
+/* Death */
+#death{position:fixed;inset:0;background:rgba(0,0,0,.84);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:190;backdrop-filter:blur(10px);}
+#death h2{font-size:46px;font-weight:800;color:#ff1111;margin-bottom:6px;}
+#dKiller{font-family:'Share Tech Mono',monospace;font-size:12px;color:#ff7755;margin-bottom:4px;}
+#dScore{font-family:'Share Tech Mono',monospace;font-size:16px;color:#5577bb;margin-bottom:4px;}
+#dInfo{font-family:'Share Tech Mono',monospace;font-size:10px;color:#334;margin-bottom:22px;}
+#respB{background:linear-gradient(135deg,#881111,#ff3311);border:none;border-radius:7px;color:#fff;font-family:'Oxanium',sans-serif;font-size:12px;font-weight:700;letter-spacing:3px;padding:9px 32px;cursor:pointer;text-transform:uppercase;}
+
+/* Mod menu */
+#mod{position:fixed;inset:0;background:rgba(0,0,18,.95);display:none;z-index:300;backdrop-filter:blur(18px);overflow:auto;}
+#modIn{max-width:800px;margin:0 auto;padding:22px;}
+#mod h2{font-size:20px;font-weight:800;color:#ffdd44;letter-spacing:2px;margin-bottom:3px;}
+.mSub{font-family:'Share Tech Mono',monospace;font-size:9px;color:#443;letter-spacing:3px;margin-bottom:16px;}
+.mSec{background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.05);border-radius:8px;padding:12px;margin-bottom:10px;}
+.mSec h3{font-size:9px;letter-spacing:3px;text-transform:uppercase;color:#3355aa;margin-bottom:10px;font-family:'Share Tech Mono',monospace;}
+.mRow{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;align-items:center;}
+.mB{padding:5px 11px;font-size:10px;font-family:'Oxanium',sans-serif;font-weight:600;border:1px solid rgba(255,255,255,.08);border-radius:5px;cursor:pointer;transition:all .15s;}
+.mB.r{background:rgba(180,20,20,.3);color:#ff8888;border-color:rgba(180,20,20,.3);}.mB.r:hover{background:rgba(180,20,20,.6);}
+.mB.g{background:rgba(20,140,60,.3);color:#55ff88;border-color:rgba(20,140,60,.3);}.mB.g:hover{background:rgba(20,140,60,.6);}
+.mB.b{background:rgba(20,70,180,.3);color:#7799ff;border-color:rgba(20,70,180,.3);}.mB.b:hover{background:rgba(20,70,180,.6);}
+.mB.y{background:rgba(180,140,0,.3);color:#ffdd44;border-color:rgba(180,140,0,.3);}.mB.y:hover{background:rgba(180,140,0,.6);}
+.mB.p{background:rgba(120,20,180,.3);color:#cc77ff;border-color:rgba(120,20,180,.3);}.mB.p:hover{background:rgba(120,20,180,.6);}
+.mIn{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:4px;color:#ccc;font-family:'Share Tech Mono',monospace;font-size:10px;padding:4px 8px;outline:none;}
+#mStBox{font-family:'Share Tech Mono',monospace;font-size:10px;color:#446;line-height:2;}
+#mPT{width:100%;border-collapse:collapse;font-size:10px;font-family:'Share Tech Mono',monospace;}
+#mPT th{text-align:left;color:#3355aa;padding:3px 6px;border-bottom:1px solid rgba(255,255,255,.05);}
+#mPT td{padding:4px 6px;border-bottom:1px solid rgba(255,255,255,.03);vertical-align:middle;}
+.mPR:hover td{background:rgba(255,255,255,.02);}
+.bot-tag{font-size:8px;background:rgba(100,50,200,.4);color:#aa77ff;border-radius:3px;padding:1px 4px;margin-left:3px;}
+#mLog{font-family:'Share Tech Mono',monospace;font-size:9px;color:#446;line-height:1.9;max-height:140px;overflow-y:auto;}
+#mCloseB{position:fixed;top:14px;right:14px;background:rgba(180,20,20,.4);border:1px solid rgba(180,20,20,.4);border-radius:5px;color:#fff;font-family:'Oxanium',sans-serif;font-size:11px;font-weight:700;padding:5px 14px;cursor:pointer;}
+#modBtn{position:fixed;bottom:68px;left:50%;transform:translateX(-50%);background:rgba(180,140,0,.35);border:1px solid rgba(180,140,0,.5);border-radius:18px;color:#ffdd44;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;padding:5px 16px;cursor:pointer;display:none;z-index:100;}
+
+/* Nuke flash */
+#nFlash{position:fixed;inset:0;background:rgba(255,200,50,0);pointer-events:none;z-index:400;transition:background .12s;}
+
+/* Railway fix notice - hidden */
+#railwayNote{display:none;}
+</style>
+</head>
+<body>
+<canvas id="gc"></canvas>
+<div id="nFlash"></div>
+
+<div id="hud">
+  <div id="scoreBar"><div id="sLabel">SCORE</div><div id="sNum">0</div><div id="xpBar"><div id="xpFill"></div></div></div>
+  <div id="tankInfo"><div id="tName">BASIC</div><div id="lvlBadge">LEVEL 1</div><div id="killCnt">☠ 0 | 💀 0</div></div>
+</div>
+
+<div class="panel" id="statP"><h3>⚙ Upgrades</h3><div id="spPts">Points: 0</div><div id="sRows"></div></div>
+<div class="panel" id="tankSel"><h3>🔫 Tank</h3><div id="tBtns"></div></div>
+<div class="panel" id="lb"><h3>⚡ Rankings</h3><div id="lbList"></div></div>
+<div class="panel" id="mm"><canvas id="mmC" width="118" height="118"></canvas></div>
+
+<div id="bossBar"><div id="bossLbl">👹 BOSS</div><div id="bossWrap"><div id="bossFill" style="width:100%"></div></div></div>
+
+<div id="evBanner">
+  <div id="evName">EVENT</div>
+  <div id="evTimer"></div>
+</div>
+
+<div id="ann"></div>
+<div id="kf"></div>
+<div id="pui"></div>
+<div id="sts">🔄 CONNECTING...</div>
+
+<div class="panel" id="chatBox">
+  <div id="chatLog"></div>
+  <div id="chatRow">
+    <input id="chatIn" placeholder="Enter — написать..." maxlength="120"/>
+    <button id="chatSend" onclick="sendChat()">➤</button>
+  </div>
+</div>
+
+<div id="mUI">
+  <div id="jZone"><div id="jBase"><div id="jKnob"></div></div></div>
+  <div id="aimZ"></div>
+  <div id="fireB">🔥</div>
+</div>
+
+<button id="modBtn" onclick="openMod()">👑 MOD MENU [F1]</button>
+
+<!-- START -->
+<div id="ov">
+  <h1>DIEP.IO</h1>
+  <div class="ovSub">Multiplayer Tank Arena v5</div>
+  <input class="ovIn" id="nIn" placeholder="Ваш ник..." maxlength="20"/>
+  <div id="ntMsg"></div>
+  <div id="passRow">
+    <div id="passInfo">🔑 Если ты владелец — введи пароль:</div>
+    <input class="ovIn" id="pIn" type="password" placeholder="Admin password..."/>
+  </div>
+  <button id="playB" onclick="startGame()">▶ ИГРАТЬ</button>
+  <div class="hint">
+    <span class="key">WASD</span> движение &nbsp;
+    <span class="key">ЛКМ</span> стрельба &nbsp;
+    <span class="key">Enter</span> чат &nbsp;
+    <span class="key">F1</span> мод-меню<br>
+    Собирай еду → уровни → танки → статы → убивай боссов
+  </div>
+</div>
+
+<!-- DEATH -->
+<div id="death">
+  <h2>☠ УБИТ</h2>
+  <div id="dKiller"></div><div id="dScore"></div><div id="dInfo"></div>
+  <button id="respB" onclick="respawn()">↺ ВОЗРОДИТЬСЯ</button>
+</div>
+
+<!-- MOD MENU -->
+<div id="mod">
+  <button id="mCloseB" onclick="closeMod()">✕ ЗАКРЫТЬ</button>
+  <div id="modIn">
+    <h2>👑 MOD MENU</h2>
+    <div class="mSub">ТОЛЬКО ДЛЯ ВЛАДЕЛЬЦА СЕРВЕРА • TOKEN-PROTECTED</div>
+
+    <!-- Stats -->
+    <div class="mSec">
+      <h3>📊 Статистика сервера</h3>
+      <div class="mRow">
+        <button class="mB b" onclick="mA('getStats')">🔄 Обновить</button>
+      </div>
+      <div id="mStBox">Нажми обновить...</div>
+    </div>
+
+    <!-- World -->
+    <div class="mSec">
+      <h3>🌍 Мир</h3>
+      <div class="mRow">
+        <button class="mB r" onclick="mA('spawnBoss')">👹 Spawn Boss</button>
+        <button class="mB r" onclick="mA('killBosses')">💀 Kill Bosses</button>
+        <button class="mB b" onclick="mA('clearShapes')">🗑 Clear Shapes</button>
+        <button class="mB b" onclick="mA('refillShapes')">✨ Refill Shapes</button>
+        <button class="mB b" onclick="mA('clearBullets')">💧 Clear Bullets</button>
+        <button class="mB b" onclick="mA('clearAllFood')">🍕 Clear Food</button>
+      </div>
+    </div>
+
+    <!-- Events -->
+    <div class="mSec">
+      <h3>🎉 Ивенты</h3>
+      <div class="mRow">
+        <button class="mB y" onclick="mA('startEvent',{eventType:'doubleXP'})">⭐ Double XP</button>
+        <button class="mB r" onclick="mA('startEvent',{eventType:'chaos'})">💥 Chaos Mode</button>
+        <button class="mB g" onclick="mA('startEvent',{eventType:'feast'})">🍕 Food Feast</button>
+        <button class="mB r" onclick="mA('startEvent',{eventType:'bossRaid'})">👹 Boss Raid</button>
+        <button class="mB p" onclick="mA('startEvent',{eventType:'shapeStorm'})">🔷 Shape Storm</button>
+        <button class="mB b" onclick="mA('startEvent',{eventType:'speedrun'})">⚡ Speed Run</button>
+        <button class="mB r" onclick="mA('endEvent')">⏹ Stop Event</button>
+      </div>
+    </div>
+
+    <!-- Announce -->
+    <div class="mSec">
+      <h3>📢 Объявление</h3>
+      <div class="mRow">
+        <input class="mIn" id="annTxt" placeholder="Текст..." style="width:200px;"/>
+        <input type="color" id="annClr" value="#ffdd44" style="width:30px;height:26px;border:none;background:none;cursor:pointer;border-radius:4px;"/>
+        <button class="mB y" onclick="sendAnn()">📢 Всем</button>
+        <button class="mB b" onclick="mA('chatMsg',{text:document.getElementById('annTxt').value})">💬 В чат</button>
+      </div>
+    </div>
+
+    <!-- Bots -->
+    <div class="mSec">
+      <h3>🤖 Управление ботами</h3>
+      <div class="mRow">
+        <input class="mIn" id="botNm" placeholder="Ник бота..." style="width:110px;"/>
+        <select class="mIn" id="botDiff" style="cursor:pointer;">
+          <option value="easy">Easy 🟢</option>
+          <option value="medium" selected>Medium 🟡</option>
+          <option value="hard">Hard 🔴</option>
+        </select>
+        <button class="mB g" onclick="spawnBot(1)">+1 Бот</button>
+        <button class="mB g" onclick="spawnBot(3)">+3 Бота</button>
+        <button class="mB g" onclick="spawnBot(5)">+5 Ботов</button>
+        <button class="mB g" onclick="spawnBot(10)">+10 Ботов</button>
+      </div>
+      <div class="mRow">
+        <button class="mB r" onclick="mA('removeAllBots')">🗑 Удалить всех ботов</button>
+        <select class="mIn" id="allBotDiff" style="cursor:pointer;">
+          <option value="easy">Easy</option>
+          <option value="medium" selected>Medium</option>
+          <option value="hard">Hard</option>
+        </select>
+        <button class="mB b" onclick="mA('setBotDiff',{difficulty:document.getElementById('allBotDiff').value})">Сменить сложность всем</button>
+      </div>
+    </div>
+
+    <!-- My account -->
+    <div class="mSec">
+      <h3>👑 Мой аккаунт</h3>
+      <div class="mRow">
+        <button class="mB g" onclick="mA('godMode')">⚡ God Mode</button>
+        <button class="mB g" onclick="mA('maxStats')">📈 Max Stats</button>
+        <button class="mB y" onclick="mA('allTanks')">🔓 All Tanks</button>
+        <button class="mB p" onclick="mA('ownerRainbow')">🌈 Rainbow</button>
+        <button class="mB b" onclick="mA('tpCenter')">📍 Center TP</button>
+        <button class="mB y" onclick="mA('addScore',{amount:10000})">+10k Score</button>
+        <button class="mB y" onclick="mA('addScore',{amount:50000})">+50k Score</button>
+      </div>
+    </div>
+
+    <!-- Player list -->
+    <div class="mSec">
+      <h3>👥 Список игроков</h3>
+      <div class="mRow">
+        <button class="mB b" onclick="mA('getPlayerList')">🔄 Обновить</button>
+      </div>
+      <div style="overflow-x:auto;">
+        <table id="mPT">
+          <thead><tr>
+            <th>Ник</th><th>Тип</th><th>Счёт</th><th>K/D</th><th>Ур.</th><th>Действия</th>
+          </tr></thead>
+          <tbody id="mPB"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Log -->
+    <div class="mSec">
+      <h3>📋 Лог сервера</h3>
+      <div class="mRow">
+        <button class="mB b" onclick="mA('getLog')">🔄 Обновить</button>
+      </div>
+      <div id="mLog">...</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  RAILWAY FIX: правильное WebSocket подключение
+// ═══════════════════════════════════════════════════════════════
+function getWSUrl() {
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const host = location.hostname;
+  const port = location.port;
+  // На Railway: порт пустой (использует 80/443) — не добавляем :порт
+  // Локально: port = 3000 — добавляем
+  if (port && port !== '80' && port !== '443') {
+    return `${proto}//${host}:${port}`;
+  }
+  return `${proto}//${host}`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+const canvas = document.getElementById('gc');
+const ctx = canvas.getContext('2d');
+const mmC = document.getElementById('mmC');
+const mctx = mmC.getContext('2d');
+canvas.width = innerWidth; canvas.height = innerHeight;
+addEventListener('resize', () => { canvas.width = innerWidth; canvas.height = innerHeight; });
+
+let ws, myId, myName = 'Player', isOwner = false, modToken = '';
+let worldW = 5000, worldH = 5000;
+let players = {}, bullets = {}, food = {}, shapes = {}, powerups = {}, bosses = {};
+let camX = 0, camY = 0;
+let mouse = { x: innerWidth/2, y: innerHeight/2 };
+let inputs = { up:false, down:false, left:false, right:false, fire:false };
+let mouseAngle = 0;
+let particles = [], nukes = [];
+let myStats = {healthRegen:0,maxHealth:0,bodyDamage:0,bulletSpeed:0,bulletPen:0,bulletDamage:0,reload:0,movementSpeed:0};
+let myStatPoints = 0;
+let annTO;
+let activeEvent = null;
+const isMobile = 'ontouchstart' in window;
+let pendingName = '', pendingPass = '';
+
+// ── CONSTANTS ────────────────────────────────────────────────
+const TANK_NAMES = ['Basic','Twin','Sniper','MachineGun','Flank','Triplet','Destroyer','Octo','Tri-angle','Sprayer','Booster','PentaShot','Annihilator','Auto3','Streamliner','Stalker','Spread3'];
+const LT = [0,500,1000,2000,4000,7500,11250,15000,22500,30000,40000,55000,75000,100000,130000];
+const SN = ['healthRegen','maxHealth','bodyDamage','bulletSpeed','bulletPen','bulletDamage','reload','movementSpeed'];
+const SL = ['HP Regen','Max HP','Body Dmg','Bullet Spd','Penetr.','Bullet Dmg','Reload','Speed'];
+const SC = ['#33cc77','#33aaff','#ff6644','#88ddff','#cc88ff','#ffaa44','#ff88cc','#66ffcc'];
+const PUI = {health:'💊',speed:'⚡',damage:'🔥',shield:'🛡',freeze:'❄️',magnet:'🧲',ghost:'👻',nuke:'💥',doubleScore:'⭐',invincible:'💛'};
+const PUC = {health:'#33cc77',speed:'#33aaff',damage:'#ff7733',shield:'#9966ff',freeze:'#55ccff',magnet:'#ff99cc',ghost:'#88ccff',nuke:'#ff5500',doubleScore:'#ffdd44',invincible:'#ffffaa'};
+
+const BARRELS = [
+  [{a:0,w:12,l:30}],
+  [{a:-.18,w:10,l:30},{a:.18,w:10,l:30}],
+  [{a:0,w:8,l:55}],[{a:0,w:18,l:28}],
+  [{a:0,w:12,l:30},{a:Math.PI,w:10,l:25}],
+  [{a:-.28,w:10,l:30},{a:0,w:12,l:34},{a:.28,w:10,l:30}],
+  [{a:0,w:24,l:40}],
+  [0,1,2,3,4,5,6,7].map(i=>({a:i*Math.PI/4,w:10,l:28})),
+  [{a:0,w:14,l:32},{a:2.35,w:10,l:26},{a:-2.35,w:10,l:26}],
+  [{a:0,w:15,l:30}],
+  [{a:0,w:12,l:32},{a:2.5,w:8,l:22},{a:-2.5,w:8,l:22},{a:Math.PI,w:8,l:20}],
+  [{a:-.5,w:9,l:28},{a:-.25,w:10,l:31},{a:0,w:12,l:34},{a:.25,w:10,l:31},{a:.5,w:9,l:28}],
+  [{a:0,w:32,l:46}],
+  [{a:0,w:12,l:30},{a:2.09,w:10,l:28},{a:-2.09,w:10,l:28}],
+  [{a:0,w:9,l:52},{a:0,w:7,l:44},{a:0,w:5,l:38}],
+  [{a:0,w:6,l:62}],
+  [{a:-.4,w:11,l:30},{a:0,w:13,l:33},{a:.4,w:11,l:30}],
+];
+const SHAPE_COL = {triangle:'#ff9944',square:'#ffdd44',pentagon:'#9955ff',hexagon:'#44ffbb',alpha:'#ff44ff',crasher:'#ff3333'};
+const SHAPE_STR = {triangle:'#cc6611',square:'#ccaa11',pentagon:'#6622cc',hexagon:'#22ccaa',alpha:'#cc11cc',crasher:'#aa1111'};
+const SHAPE_SIDES = {triangle:3,square:4,pentagon:5,hexagon:6,alpha:5,crasher:3};
+const SHAPE_R = {triangle:22,square:27,pentagon:37,hexagon:32,alpha:72,crasher:16};
+
+function getLvl(s){for(let i=LT.length-1;i>=0;i--)if(s>=LT[i])return i;return 0;}
+function getXP(s){const l=getLvl(s);if(l>=LT.length-1)return 100;return(s-LT[l])/(LT[l+1]-LT[l])*100;}
+function rainbow(x=0){return `hsl(${(Date.now()/12+x)%360},90%,58%)`;}
+
+// ── BUILD UI ──────────────────────────────────────────────────
+function buildStats(){
+  const c=document.getElementById('sRows');c.innerHTML='';
+  SN.forEach((s,i)=>{
+    const r=document.createElement('div');r.className='sRow';r.id='sr_'+s;
+    r.innerHTML=`<div class="sNm">${SL[i]}</div><div class="sBW"><div class="sBF" id="sb_${s}" style="background:${SC[i]}"></div></div><div class="sPl" id="sp_${s}">＋</div>`;
+    r.onclick=()=>{if(myStatPoints>0&&myStats[s]<7)ws?.readyState===1&&ws.send(JSON.stringify({type:'upgrade',stat:s}));};
+    c.appendChild(r);
+  });
+}
+function buildTanks(){
+  const c=document.getElementById('tBtns');c.innerHTML='';
+  TANK_NAMES.forEach((n,i)=>{
+    const b=document.createElement('div');b.className='tBtn';b.id='tb_'+i;b.textContent=n;
+    b.onclick=()=>ws?.readyState===1&&ws.send(JSON.stringify({type:'selectTank',tankType:i}));
+    c.appendChild(b);
+  });
+}
+function updStats(){
+  document.getElementById('spPts').textContent='Points: '+myStatPoints;
+  SN.forEach(s=>{
+    const b=document.getElementById('sb_'+s),r=document.getElementById('sr_'+s);
+    if(b)b.style.width=((myStats[s]/7)*100)+'%';
+    if(r)myStatPoints>0&&myStats[s]<7?r.classList.add('av'):r.classList.remove('av');
+  });
+}
+function updTanks(){
+  const me=players[myId];if(!me)return;
+  TANK_NAMES.forEach((_,i)=>{const b=document.getElementById('tb_'+i);if(!b)return;b.classList.remove('ul','act');if(me.level>=i||isOwner)b.classList.add('ul');if(me.tankType===i)b.classList.add('act');});
+}
+
+// ── PARTICLES ─────────────────────────────────────────────────
+function spawnPfx(x,y,color,n=8,spd=4){
+  for(let i=0;i<n;i++){const a=Math.random()*Math.PI*2,s=Math.random()*spd+1;particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:55+Math.random()*20,maxLife:75,color,r:3+Math.random()*4});}
+}
+function tickPfx(){for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.x+=p.vx;p.y+=p.vy;p.vx*=.91;p.vy*=.91;if(--p.life<=0)particles.splice(i,1);}}
+function drawPfx(){for(const p of particles){const al=p.life/p.maxLife,sx=p.x-camX,sy=p.y-camY;ctx.beginPath();ctx.arc(sx,sy,p.r*al,0,Math.PI*2);ctx.fillStyle=p.color+Math.floor(al*255).toString(16).padStart(2,'0');ctx.fill();}}
+
+// ── ANNOUNCE & CHAT ───────────────────────────────────────────
+function ann(msg,color='#ffdd44'){
+  const e=document.getElementById('ann');e.textContent=msg;e.style.color=color;e.style.opacity='1';
+  clearTimeout(annTO);annTO=setTimeout(()=>e.style.opacity='0',3800);
+}
+function kfAdd(t){
+  const f=document.getElementById('kf');const e=document.createElement('div');e.className='km';e.textContent=t;
+  f.appendChild(e);setTimeout(()=>e.remove(),4200);
+}
+function chatAdd(entry){
+  const log=document.getElementById('chatLog');
+  const d=document.createElement('div');
+  d.className='cMsg'+(entry.isOwner?' own':'')+(entry.name==='[SYSTEM]'?' sys':'');
+  const nameHtml=entry.isOwner?`<span class="cNm">👑 ${entry.name}</span>`:`<span class="cNm">${entry.name||'?'}</span>`;
+  d.innerHTML=`${nameHtml}: ${entry.text}`;
+  log.appendChild(d);log.scrollTop=log.scrollHeight;
+}
+function sendChat(){
+  const inp=document.getElementById('chatIn'),text=inp.value.trim();
+  if(!text)return;ws?.readyState===1&&ws.send(JSON.stringify({type:'chat',text}));inp.value='';
+}
+document.getElementById('chatIn').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();sendChat();}});
+
+// ── EVENT BANNER ──────────────────────────────────────────────
+function updEventBanner(ev){
+  const banner=document.getElementById('evBanner');
+  if(!ev){banner.style.display='none';return;}
+  banner.style.display='block';
+  const nameEl=document.getElementById('evName');
+  nameEl.textContent=ev.name;nameEl.style.color=ev.color;
+  if(ev.remaining!=null){
+    const s=Math.ceil(ev.remaining/60);
+    document.getElementById('evTimer').textContent=`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')} remaining`;
+  }
+}
+
+// ── START / CONNECT ───────────────────────────────────────────
+document.getElementById('nIn').addEventListener('input',e=>{
+  document.getElementById('passRow').style.display=e.target.value.trim().length>0?'flex':'none';
+});
+document.getElementById('nIn').addEventListener('keydown',e=>{if(e.key==='Enter')startGame();});
+
+function startGame(){
+  pendingName=document.getElementById('nIn').value.trim()||'Player';
+  pendingPass=document.getElementById('pIn').value.trim();
+  document.getElementById('ov').style.display='none';
+  buildStats();buildTanks();
+  if(isMobile){document.getElementById('mUI').style.display='block';setupMobile();}
+  connect();
+}
+
+let reconnectTO;
+function connect(){
+  const url = getWSUrl();  // ← Railway fix here
+  document.getElementById('sts').textContent='🔄 '+url;
+  ws=new WebSocket(url);
+  ws.onopen=()=>{
+    document.getElementById('sts').textContent='🟢 ONLINE';
+    sendInputLoop();
+    requestAnimationFrame(loop);
+  };
+  ws.onmessage=e=>handle(JSON.parse(e.data));
+  ws.onclose=()=>{
+    document.getElementById('sts').textContent='🔴 OFFLINE — переподключение...';
+    clearTimeout(reconnectTO);
+    reconnectTO=setTimeout(connect,3000);
+  };
+  ws.onerror=()=>document.getElementById('sts').textContent='❌ ERROR';
+}
+
+// ── MESSAGES ─────────────────────────────────────────────────
+function handle(msg){
+  switch(msg.type){
+    case 'init':
+      myId=msg.id;worldW=msg.worldW;worldH=msg.worldH;
+      food={};msg.food.forEach(f=>food[f.id]=f);
+      shapes={};msg.shapes.forEach(s=>shapes[s.id]=s);
+      powerups={};msg.powerups.forEach(p=>powerups[p.id]=p);
+      bosses={};msg.bosses.forEach(b=>bosses[b.id]=b);
+      players={};msg.players.forEach(p=>players[p.id]=p);
+      (msg.chatHistory||[]).reverse().forEach(e=>chatAdd(e));
+      if(msg.activeEvent){activeEvent=msg.activeEvent;updEventBanner(activeEvent);}
+      ws.send(JSON.stringify({type:'input',inputs,angle:0,name:pendingName}));
+      if(pendingPass) ws.send(JSON.stringify({type:'adminLogin',name:pendingName,pass:pendingPass}));
+      break;
+    case 'state':
+      msg.players.forEach(p=>{if(players[p.id])Object.assign(players[p.id],p);else players[p.id]=p;});
+      const ids=new Set(msg.players.map(p=>p.id));
+      for(const id in players)if(id!==myId&&!ids.has(id))delete players[id];
+      bullets={};msg.bullets.forEach(b=>bullets[b.id]=b);
+      msg.shapes.forEach(s=>{if(shapes[s.id])Object.assign(shapes[s.id],s);else shapes[s.id]=s;});
+      msg.bosses.forEach(b=>{if(bosses[b.id])Object.assign(bosses[b.id],b);else bosses[b.id]=b;});
+      const bids=new Set(msg.bosses.map(b=>b.id));
+      for(const id in bosses)if(!bids.has(id))delete bosses[id];
+      if(msg.activeEvent!==undefined){activeEvent=msg.activeEvent;updEventBanner(activeEvent);}
+      updHUD();break;
+    case 'playerJoin': players[msg.player.id]=msg.player; break;
+    case 'playerLeave': delete players[msg.id]; break;
+    case 'nameChange': if(players[msg.id]){players[msg.id].name=msg.name;players[msg.id].isOwner=msg.isOwner;} break;
+    case 'nameTaken':
+      document.getElementById('ntMsg').textContent='Имя занято → '+msg.suggested;
+      document.getElementById('ntMsg').style.display='block';
+      setTimeout(()=>document.getElementById('ntMsg').style.display='none',4000);
+      break;
+    case 'foodEat': delete food[msg.id]; break;
+    case 'foodSpawn': msg.food.forEach(f=>food[f.id]=f); break;
+    case 'shapeDestroy':
+      const sd=shapes[msg.id];
+      if(sd)spawnPfx(sd.x,sd.y,SHAPE_COL[sd.type]||'#fff',sd.type==='alpha'?28:sd.type==='hexagon'?12:10,5);
+      delete shapes[msg.id]; break;
+    case 'shapeSpawn': msg.shapes.forEach(s=>shapes[s.id]=s); break;
+    case 'shapeHit': if(shapes[msg.id])shapes[msg.id].hp=msg.hp; break;
+    case 'bulletRemove': delete bullets[msg.id]; break;
+    case 'powerupSpawn': (msg.powerups||[msg.powerup]).filter(Boolean).forEach(p=>powerups[p.id]=p); break;
+    case 'powerupRemove': delete powerups[msg.id]; break;
+    case 'powerupCollect':
+      delete powerups[msg.id];
+      if(msg.player===myId) ann(PUI[msg.puType]+' '+msg.puType+' activated!',PUC[msg.puType]);
+      break;
+    case 'nuke':
+      nukes.push({x:msg.x,y:msg.y,r:0,maxR:msg.r,life:28});
+      const nf=document.getElementById('nFlash');nf.style.background='rgba(255,170,40,.4)';setTimeout(()=>nf.style.background='rgba(255,200,50,0)',180);
+      spawnPfx(msg.x,msg.y,'#ff8800',45,12);
+      break;
+    case 'bossSpawn': msg.bosses.forEach(b=>bosses[b.id]=b);document.getElementById('bossBar').style.display='block'; break;
+    case 'bossHit': if(bosses[msg.id]){bosses[msg.id].hp=msg.hp;bosses[msg.id].maxHp=msg.maxHp;}updBoss(); break;
+    case 'bossDestroy':
+      if(bosses[msg.id])spawnPfx(bosses[msg.id].x,bosses[msg.id].y,'#ff3333',35,10);
+      delete bosses[msg.id];
+      if(!Object.keys(bosses).length)document.getElementById('bossBar').style.display='none'; break;
+    case 'playerDie':
+      if(players[msg.id]){spawnPfx(players[msg.id].x,players[msg.id].y,'#4488ff',18,7);players[msg.id].alive=false;}
+      if(msg.id===myId)showDeath(msg.killerName);
+      kfAdd(`${msg.killerName||'?'} ☠ ${players[msg.id]?.name||'?'}`); break;
+    case 'playerHit': if(players[msg.id])players[msg.id].hp=msg.hp; break;
+    case 'playerRespawn':
+      if(players[msg.id])Object.assign(players[msg.id],{alive:true,x:msg.x,y:msg.y,hp:msg.hp,maxHp:msg.maxHp,score:msg.score,level:msg.level});
+      if(msg.id===myId)document.getElementById('death').style.display='none'; break;
+    case 'levelUp':
+      if(players[msg.id])players[msg.id].level=msg.level;
+      if(msg.id===myId)ann('▲ LEVEL UP! New tanks!','#ffdd44'); break;
+    case 'tankChanged': if(players[msg.id])players[msg.id].tankType=msg.tankType;if(msg.id===myId)updTanks(); break;
+    case 'shieldOn': if(players[msg.id])players[msg.id].shieldActive=true; break;
+    case 'shieldOff': if(players[msg.id])players[msg.id].shieldActive=false; break;
+    case 'shieldBlock': spawnPfx(players[msg.id]?.x||0,players[msg.id]?.y||0,'#9966ff',8,3); break;
+    case 'playerFrozen': if(players[msg.id])players[msg.id].frozen=msg.frozen; break;
+    case 'playerRainbow': if(players[msg.id])players[msg.id].rainbow=msg.rainbow; break;
+    case 'playerGhost': if(players[msg.id])players[msg.id].ghost=msg.ghost; break;
+    case 'playerSize': if(players[msg.id])players[msg.id].size=msg.size; break;
+    case 'statsUpdated': myStats=msg.stats;myStatPoints=msg.statPoints;if(players[myId])players[myId].maxHp=msg.maxHp;updStats(); break;
+    case 'announce': ann(msg.msg,msg.color); break;
+    case 'eventStart': activeEvent=msg.event;updEventBanner(activeEvent); break;
+    case 'eventEnd': activeEvent=null;updEventBanner(null); break;
+    case 'chat': chatAdd(msg.entry); break;
+    case 'modAccess': isOwner=true;modToken=msg.token;document.getElementById('modBtn').style.display='block';if(players[myId])players[myId].isOwner=true;ann('👑 Mod Menu unlocked! [F1]','#ffdd44'); break;
+    case 'modOk': ann('✅ '+msg.msg,'#44ff88'); break;
+    case 'modError': ann('❌ '+msg.msg,'#ff4444'); break;
+    case 'modPlayerList': renderModPlayers(msg.players); break;
+    case 'modLog': document.getElementById('mLog').innerHTML=msg.log.map(l=>`<div>${l}</div>`).join('')||'<div style="color:#334">Пусто</div>'; break;
+    case 'modStats':
+      document.getElementById('mStBox').innerHTML=
+        `Людей: <b style="color:#44ff88">${msg.stats.humans}</b> &nbsp;|&nbsp; Ботов: <b style="color:#cc77ff">${msg.stats.bots}</b> &nbsp;|&nbsp; Боссов: <b style="color:#ff4444">${msg.stats.bosses}</b><br>` +
+        `Фигур: ${msg.stats.shapes} &nbsp;|&nbsp; Еды: ${msg.stats.food} &nbsp;|&nbsp; Пуль: ${msg.stats.bullets}<br>` +
+        `Uptime: ${Math.floor(msg.stats.uptime/60)}m ${msg.stats.uptime%60}s &nbsp;|&nbsp; Ивент: <b style="color:#ffdd44">${msg.stats.event}</b>`;
+      break;
+  }
+}
+
+function showDeath(kn){
+  const me=players[myId];
+  document.getElementById('dKiller').textContent=kn?`Убит: ${kn}`:'';
+  document.getElementById('dScore').textContent=`Очки: ${me?.score||0}`;
+  document.getElementById('dInfo').textContent=`☠ ${me?.kills||0} kill  💀 ${me?.deaths||0} death`;
+  document.getElementById('death').style.display='flex';
+}
+function respawn(){ws?.readyState===1&&ws.send(JSON.stringify({type:'respawn'}));}
+
+function updHUD(){
+  const me=players[myId];if(!me)return;
+  document.getElementById('sNum').textContent=me.score;
+  document.getElementById('xpFill').style.width=getXP(me.score)+'%';
+  document.getElementById('lvlBadge').textContent='LEVEL '+(me.level+1);
+  document.getElementById('tName').textContent=TANK_NAMES[me.tankType||0]||'Basic';
+  document.getElementById('killCnt').textContent=`☠ ${me.kills||0} | 💀 ${me.deaths||0}`;
+  updTanks();
+  // Leaderboard — no bot icon, just clean names
+  const sorted=Object.values(players).filter(p=>p.alive!==false).sort((a,b)=>b.score-a.score).slice(0,8);
+  document.getElementById('lbList').innerHTML=sorted.map((p,i)=>
+    `<div class="lbR ${p.id===myId?'me':''}">` +
+    `<span class="rk">#${i+1}</span>` +
+    `<span class="nm">${p.isOwner?'👑 ':''+(p.name||'?')}</span>` +
+    `<span class="sc">${p.score}</span></div>`
+  ).join('');
+}
+
+function updBoss(){
+  const ba=Object.values(bosses);if(!ba.length){document.getElementById('bossBar').style.display='none';return;}
+  const b=ba[0];document.getElementById('bossBar').style.display='block';
+  document.getElementById('bossFill').style.width=(b.hp/b.maxHp*100)+'%';
+  const lbls=['👹 BOSS','👹 ENRAGED!','👹 BERSERK!!!'];
+  const fills=['linear-gradient(90deg,#880000,#ff2222)','linear-gradient(90deg,#bb4400,#ff7722)','linear-gradient(90deg,#660077,#ff22ff)'];
+  document.getElementById('bossLbl').textContent=lbls[b.phase||0];
+  document.getElementById('bossFill').style.background=fills[b.phase||0];
+}
+
+// ── MOD MENU ─────────────────────────────────────────────────
+function openMod(){document.getElementById('mod').style.display='block';mA('getStats');mA('getPlayerList');}
+function closeMod(){document.getElementById('mod').style.display='none';}
+function mA(a,extra={}){ws?.readyState===1&&ws.send(JSON.stringify({type:'mod',action:a,token:modToken,...extra}));}
+function mT(a,tid,extra={}){ws?.readyState===1&&ws.send(JSON.stringify({type:'mod',action:a,token:modToken,targetId:tid,...extra}));}
+function sendAnn(){const t=document.getElementById('annTxt').value.trim(),c=document.getElementById('annClr').value;if(t)mA('announce',{text:t,color:c});}
+function spawnBot(n){
+  const nm=document.getElementById('botNm').value.trim()||'Bot';
+  const d=document.getElementById('botDiff').value;
+  mA('spawnBots',{botName:nm,difficulty:d,count:n});
+}
+
+function renderModPlayers(list){
+  document.getElementById('mPB').innerHTML=list.map(p=>`
+    <tr class="mPR">
+      <td>${p.name}${p.isOwner?` <span style="color:#ffdd44;font-size:8px;">👑</span>`:''}</td>
+      <td>${p.isBot?`<span class="bot-tag">BOT</span>`:'<span style="color:#44ff88;font-size:8px;">HUM</span>'}</td>
+      <td>${p.score}</td>
+      <td>${p.kills}/${p.deaths||0}</td>
+      <td>${p.level+1}</td>
+      <td style="display:flex;flex-wrap:wrap;gap:3px;">
+        <button class="mB g" style="padding:2px 5px;font-size:8px;" onclick="mT('giveScore','${p.id}',{amount:5000})">+5k</button>
+        <button class="mB g" style="padding:2px 5px;font-size:8px;" onclick="mT('heal','${p.id}')">heal</button>
+        <button class="mB y" style="padding:2px 5px;font-size:8px;" onclick="mT('giveGod','${p.id}')">god</button>
+        <button class="mB b" style="padding:2px 5px;font-size:8px;" onclick="mT('tp','${p.id}')">→me</button>
+        <button class="mB b" style="padding:2px 5px;font-size:8px;" onclick="mT('tpMeTo','${p.id}')">me→</button>
+        <button class="mB p" style="padding:2px 5px;font-size:8px;" onclick="mT('rainbow','${p.id}')">🌈</button>
+        <button class="mB p" style="padding:2px 5px;font-size:8px;" onclick="mT('maxTarget','${p.id}')">max</button>
+        <button class="mB r" style="padding:2px 5px;font-size:8px;" onclick="mT('freeze','${p.id}')">❄</button>
+        <button class="mB r" style="padding:2px 5px;font-size:8px;" onclick="mT('kill','${p.id}')">kill</button>
+        ${!p.isBot?`<button class="mB r" style="padding:2px 5px;font-size:8px;" onclick="if(confirm('Кикнуть?'))mT('kick','${p.id}')">kick</button>`:''}
+      </td>
+    </tr>`).join('');
+}
+
+// ── INPUT ────────────────────────────────────────────────────
+addEventListener('keydown',e=>{
+  if(document.getElementById('mod').style.display==='block')return;
+  if(document.activeElement===document.getElementById('chatIn'))return;
+  if(['w','W','ArrowUp'].includes(e.key))inputs.up=true;
+  if(['s','S','ArrowDown'].includes(e.key))inputs.down=true;
+  if(['a','A','ArrowLeft'].includes(e.key))inputs.left=true;
+  if(['d','D','ArrowRight'].includes(e.key))inputs.right=true;
+  if(e.key==='F1'&&isOwner){e.preventDefault();openMod();}
+  if(e.key==='Enter')document.getElementById('chatIn').focus();
+});
+addEventListener('keyup',e=>{
+  if(['w','W','ArrowUp'].includes(e.key))inputs.up=false;
+  if(['s','S','ArrowDown'].includes(e.key))inputs.down=false;
+  if(['a','A','ArrowLeft'].includes(e.key))inputs.left=false;
+  if(['d','D','ArrowRight'].includes(e.key))inputs.right=false;
+});
+canvas.addEventListener('mousedown',e=>{if(e.button===0)inputs.fire=true;});
+canvas.addEventListener('mouseup',e=>{if(e.button===0)inputs.fire=false;});
+canvas.addEventListener('mousemove',e=>{mouse.x=e.clientX;mouse.y=e.clientY;});
+canvas.addEventListener('contextmenu',e=>e.preventDefault());
+
+function sendInputLoop(){
+  if(ws&&ws.readyState===1){
+    if(!isMobile)mouseAngle=Math.atan2(mouse.y-canvas.height/2,mouse.x-canvas.width/2);
+    ws.send(JSON.stringify({type:'input',inputs,angle:mouseAngle,name:pendingName}));
+  }
+  setTimeout(sendInputLoop,33);
+}
+
+// ── MOBILE ───────────────────────────────────────────────────
+function setupMobile(){
+  const jz=document.getElementById('jZone'),knob=document.getElementById('jKnob');
+  const fireB=document.getElementById('fireB'),aimZ=document.getElementById('aimZ');
+  const MAX=38;let jid=-1,aid=-1;
+  function upJ(cx,cy){
+    const r=jz.getBoundingClientRect();let dx=cx-(r.left+65),dy=cy-(r.top+65);
+    const l=Math.sqrt(dx*dx+dy*dy);if(l>MAX){dx=dx/l*MAX;dy=dy/l*MAX;}
+    knob.style.left=(65+dx)+'px';knob.style.top=(65+dy)+'px';
+    inputs.left=dx<-8;inputs.right=dx>8;inputs.up=dy<-8;inputs.down=dy>8;
+  }
+  addEventListener('touchstart',e=>{
+    for(const t of e.changedTouches){
+      const el=document.elementFromPoint(t.clientX,t.clientY);
+      if(jz.contains(el)||el===jz){jid=t.identifier;upJ(t.clientX,t.clientY);}
+      else if(fireB===el||fireB.contains(el)){inputs.fire=true;}
+      else if(aimZ===el||aimZ.contains(el)){aid=t.identifier;mouseAngle=Math.atan2(t.clientY-canvas.height/2,t.clientX-canvas.width/2);}
+    }
+  },{passive:true});
+  addEventListener('touchmove',e=>{
+    for(const t of e.changedTouches){
+      if(t.identifier===jid)upJ(t.clientX,t.clientY);
+      if(t.identifier===aid)mouseAngle=Math.atan2(t.clientY-canvas.height/2,t.clientX-canvas.width/2);
+    }
+  },{passive:true});
+  addEventListener('touchend',e=>{
+    for(const t of e.changedTouches){
+      if(t.identifier===jid){jid=-1;inputs.up=inputs.down=inputs.left=inputs.right=false;knob.style.left='50%';knob.style.top='50%';}
+      if(t.identifier===aid)aid=-1;
+    }
+    if(e.touches.length===0)inputs.fire=false;
+  },{passive:true});
+}
+
+// ── DRAW ─────────────────────────────────────────────────────
+function drawBarrels(x,y,angle,tankType){
+  const bars=BARRELS[tankType]||BARRELS[0];
+  ctx.save();ctx.translate(x,y);ctx.rotate(angle);
+  for(const b of bars){
+    ctx.save();ctx.rotate(b.a||0);
+    ctx.fillStyle='#3a5e7a';ctx.fillRect(0,-(b.w||12)/2,b.l||30,b.w||12);
+    ctx.strokeStyle='#243d50';ctx.lineWidth=1.5;ctx.strokeRect(0,-(b.w||12)/2,b.l||30,b.w||12);
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
+function drawTank(p,isMe){
+  const sx=p.x-camX,sy=p.y-camY,r=20*(p.size||1);
+  if(sx<-r-60||sx>canvas.width+r+60||sy<-r-60||sy>canvas.height+r+60)return;
+
+  const col=p.rainbow?rainbow(p.x):isMe?'#4488ff':p.isBot?'#aa55ff':'#ff6644';
+  const str=p.rainbow?rainbow(p.x+120):isMe?'#1e55cc':p.isBot?'#7722cc':'#cc3322';
+
+  if(p.ghost)ctx.globalAlpha=0.38;
+
+  // Frozen ring
+  if(p.frozen){
+    ctx.beginPath();ctx.arc(sx,sy,r+11,0,Math.PI*2);
+    ctx.fillStyle='rgba(80,180,255,.14)';ctx.strokeStyle='rgba(80,210,255,.5)';ctx.lineWidth=2;ctx.fill();ctx.stroke();
+  }
+  // Shield ring
+  if(p.shieldActive){
+    ctx.beginPath();ctx.arc(sx,sy,r+10,0,Math.PI*2);
+    ctx.fillStyle='rgba(140,80,255,.14)';ctx.strokeStyle='rgba(160,100,255,.65)';ctx.lineWidth=2;ctx.fill();ctx.stroke();
+  }
+  // Invincible glow
+  if(p.invincible&&!isMe){
+    ctx.beginPath();ctx.arc(sx,sy,r+6,0,Math.PI*2);
+    ctx.strokeStyle='rgba(255,255,100,.5)';ctx.lineWidth=2;ctx.stroke();
+  }
+  // Owner crown
+  if(p.isOwner){ctx.font='15px serif';ctx.textAlign='center';ctx.textBaseline='bottom';ctx.fillText('👑',sx,sy-r-13);}
+
+  drawBarrels(sx,sy,p.angle,p.tankType||0);
+
+  // Shadow
+  ctx.beginPath();ctx.arc(sx+2,sy+2,r,0,Math.PI*2);ctx.fillStyle='rgba(0,0,0,.2)';ctx.fill();
+  // Body
+  ctx.beginPath();ctx.arc(sx,sy,r,0,Math.PI*2);ctx.fillStyle=col;ctx.fill();ctx.strokeStyle=str;ctx.lineWidth=3;ctx.stroke();
+
+  // HP bar
+  const bw=Math.max(46,r*2.5),bh=6,bx=sx-bw/2,by=sy+r+5;
+  ctx.fillStyle='rgba(0,0,0,.5)';ctx.fillRect(bx-1,by-1,bw+2,bh+2);
+  const hp=Math.max(0,p.hp/p.maxHp);
+  ctx.fillStyle=hp>.6?'#22bb44':hp>.3?'#ffcc22':'#ff2222';ctx.fillRect(bx,by,bw*hp,bh);
+
+  // Name
+  ctx.fillStyle=isMe?'#fff':'rgba(255,255,255,.85)';
+  ctx.font=`${isMe?13:11}px Oxanium,sans-serif`;ctx.textAlign='center';ctx.textBaseline='bottom';
+  ctx.fillText(p.name||'?',sx,sy-r-3);
+
+  ctx.globalAlpha=1;
+}
+
+function drawShape(s){
+  const sx=s.x-camX,sy=s.y-camY,r=SHAPE_R[s.type]||27;
+  if(sx<-r-30||sx>canvas.width+r+30||sy<-r-30||sy>canvas.height+r+30)return;
+  const sides=SHAPE_SIDES[s.type]||4;
+
+  if(s.type==='alpha'){
+    ctx.beginPath();ctx.arc(sx,sy,r+22,0,Math.PI*2);
+    ctx.fillStyle='rgba(255,44,255,.07)';ctx.fill();
+  }
+  ctx.save();ctx.translate(sx,sy);ctx.rotate(s.angle);
+  ctx.beginPath();
+  for(let i=0;i<sides;i++){const a=(i/sides)*Math.PI*2-Math.PI/2;i===0?ctx.moveTo(Math.cos(a)*r,Math.sin(a)*r):ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r);}
+  ctx.closePath();
+  ctx.fillStyle=SHAPE_COL[s.type]||'#ffdd44';ctx.fill();
+  ctx.strokeStyle=SHAPE_STR[s.type]||'#ccaa11';ctx.lineWidth=s.type==='alpha'?4:2.5;ctx.stroke();
+  ctx.restore();
+
+  if(s.hp<s.maxHp){
+    const bw=Math.max(36,r*2);
+    ctx.fillStyle='rgba(0,0,0,.4)';ctx.fillRect(sx-bw/2,sy+r+4,bw,5);
+    ctx.fillStyle=SHAPE_COL[s.type]||'#ccaa22';ctx.fillRect(sx-bw/2,sy+r+4,bw*(s.hp/s.maxHp),5);
+  }
+  if(s.type==='alpha'){
+    ctx.fillStyle='#ff88ff';ctx.font='bold 10px Share Tech Mono,monospace';ctx.textAlign='center';ctx.textBaseline='bottom';
+    ctx.fillText('α PENTAGON',sx,sy-r-4);
+  }
+}
+
+function drawBoss(b){
+  const sx=b.x-camX,sy=b.y-camY,r=60;
+  if(sx<-200||sx>canvas.width+200||sy<-200||sy>canvas.height+200)return;
+  const pc=['#cc1111','#cc5500','#880088'][b.phase||0];
+  // Glow
+  ctx.beginPath();ctx.arc(sx,sy,r+22,0,Math.PI*2);ctx.fillStyle=pc+'1a';ctx.fill();
+  ctx.save();ctx.translate(sx,sy);ctx.rotate(b.angle);
+  // 12-point star
+  ctx.beginPath();
+  for(let i=0;i<12;i++){const a=(i/12)*Math.PI*2,rad=i%2===0?r:r*.52;i===0?ctx.moveTo(Math.cos(a)*rad,Math.sin(a)*rad):ctx.lineTo(Math.cos(a)*rad,Math.sin(a)*rad);}
+  ctx.closePath();ctx.fillStyle=pc;ctx.fill();ctx.strokeStyle='#ff9988';ctx.lineWidth=3;ctx.stroke();
+  ctx.beginPath();ctx.arc(0,0,r*.28,0,Math.PI*2);ctx.fillStyle='rgba(0,0,0,.5)';ctx.fill();
+  ctx.restore();
+  const bw=112,bh=11,bx=sx-bw/2,by=sy+r+8;
+  ctx.fillStyle='rgba(0,0,0,.7)';ctx.fillRect(bx-1,by-1,bw+2,bh+2);
+  ctx.fillStyle=pc;ctx.fillRect(bx,by,bw*(b.hp/b.maxHp),bh);
+  ctx.fillStyle='#fff';ctx.font='bold 10px Share Tech Mono,monospace';ctx.textAlign='center';ctx.textBaseline='bottom';
+  ctx.fillText('👹 BOSS',sx,by-3);
+}
+
+function drawPU(pu){
+  const sx=pu.x-camX,sy=pu.y-camY;
+  if(sx<-40||sx>canvas.width+40||sy<-40||sy>canvas.height+40)return;
+  const c=PUC[pu.type]||'#fff',bounce=Math.sin(Date.now()/320+pu.x*.01)*5;
+  ctx.beginPath();ctx.arc(sx,sy+bounce,18,0,Math.PI*2);
+  ctx.fillStyle=c+'1a';ctx.fill();ctx.strokeStyle=c;ctx.lineWidth=2;ctx.stroke();
+  ctx.font='18px serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText(PUI[pu.type]||'?',sx,sy+bounce);
+}
+
+function drawMM(){
+  mctx.clearRect(0,0,118,118);mctx.fillStyle='rgba(4,7,22,.95)';mctx.fillRect(0,0,118,118);
+  const sx=118/worldW,sy=118/worldH;
+  for(const id in food){const f=food[id];mctx.fillStyle='#ff88cc44';mctx.fillRect(f.x*sx-1,f.y*sy-1,2,2);}
+  for(const id in shapes){const s=shapes[id];mctx.fillStyle=SHAPE_COL[s.type]||'#fff';mctx.fillRect(s.x*sx-2,s.y*sy-2,3,3);}
+  for(const id in powerups){const p=powerups[id];mctx.fillStyle=PUC[p.type]||'#fff';mctx.fillRect(p.x*sx-2,p.y*sy-2,4,4);}
+  for(const id in bosses){const b=bosses[id];mctx.beginPath();mctx.arc(b.x*sx,b.y*sy,5,0,Math.PI*2);mctx.fillStyle='#ff2222';mctx.fill();}
+  for(const id in players){
+    const p=players[id];if(!p.alive)continue;
+    mctx.beginPath();mctx.arc(p.x*sx,p.y*sy,id===myId?4:2.5,0,Math.PI*2);
+    // Minimap: no bot distinction, just color by ownership
+    mctx.fillStyle=id===myId?'#4488ff':p.isOwner?'#ffdd44':'#ff6644';
+    mctx.fill();
+  }
+  mctx.strokeStyle='rgba(60,100,200,.18)';mctx.lineWidth=1;mctx.strokeRect(0,0,118,118);
+}
+
+// ── GAME LOOP ─────────────────────────────────────────────────
+function loop(){
+  requestAnimationFrame(loop);
+  const me=players[myId];
+  if(me&&me.alive){camX+=(me.x-canvas.width/2-camX)*.1;camY+=(me.y-canvas.height/2-camY)*.1;}
+
+  ctx.fillStyle='#080c14';ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  // Grid
+  ctx.strokeStyle='rgba(120,150,255,.04)';ctx.lineWidth=1;const g=90;
+  for(let x=-(camX%g);x<canvas.width+g;x+=g){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,canvas.height);ctx.stroke();}
+  for(let y=-(camY%g);y<canvas.height+g;y+=g){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(canvas.width,y);ctx.stroke();}
+
+  // Event tint
+  if(activeEvent?.type==='chaos'){ctx.fillStyle='rgba(255,0,0,.025)';ctx.fillRect(0,0,canvas.width,canvas.height);}
+  else if(activeEvent?.type==='feast'){ctx.fillStyle='rgba(0,255,100,.018)';ctx.fillRect(0,0,canvas.width,canvas.height);}
+  else if(activeEvent?.type==='speedrun'){ctx.fillStyle='rgba(0,150,255,.018)';ctx.fillRect(0,0,canvas.width,canvas.height);}
+
+  // World border
+  ctx.strokeStyle='rgba(60,100,200,.18)';ctx.lineWidth=6;ctx.setLineDash([22,11]);
+  ctx.strokeRect(-camX,-camY,worldW,worldH);ctx.setLineDash([]);
+
+  // Food
+  for(const id in food){
+    const f=food[id],sx=f.x-camX,sy=f.y-camY;
+    if(sx<-20||sx>canvas.width+20||sy<-20||sy>canvas.height+20)continue;
+    ctx.beginPath();ctx.arc(sx,sy,f.r,0,Math.PI*2);
+    ctx.fillStyle='#ff77cc';ctx.fill();ctx.strokeStyle='#cc2277';ctx.lineWidth=2;ctx.stroke();
+  }
+
+  for(const id in shapes)drawShape(shapes[id]);
+  for(const id in powerups)drawPU(powerups[id]);
+  for(const id in bosses)drawBoss(bosses[id]);
+
+  // Nuke rings
+  for(let i=nukes.length-1;i>=0;i--){
+    const n=nukes[i];n.r+=n.maxR/22;n.life--;
+    const sx=n.x-camX,sy=n.y-camY;
+    ctx.beginPath();ctx.arc(sx,sy,n.r,0,Math.PI*2);
+    ctx.strokeStyle=`rgba(255,140,30,${n.life/28})`;ctx.lineWidth=5;ctx.stroke();
+    if(n.life<=0)nukes.splice(i,1);
+  }
+
+  // Bullets
+  for(const id in bullets){
+    const b=bullets[id],sx=b.x-camX,sy=b.y-camY;
+    ctx.beginPath();ctx.arc(sx,sy,b.r,0,Math.PI*2);
+    ctx.fillStyle=b.isBoss?'#ff6633':'#77ccff';ctx.fill();
+    ctx.strokeStyle=b.isBoss?'#bb2200':'#2255bb';ctx.lineWidth=1;ctx.stroke();
+  }
+
+  tickPfx();drawPfx();
+  for(const id in players)if(players[id].alive)drawTank(players[id],id===myId);
+  drawMM();updBoss();
+}
+</script>
+</body>
+</html>
